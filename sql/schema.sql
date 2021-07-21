@@ -1,12 +1,13 @@
 \set ON_ERROR_STOP 1
 
+create schema if not exists ext;
+create extension if not exists "uuid-ossp" with schema ext;
+
+
 begin;
 
 drop schema if exists pim cascade;
 create schema pim;
-
-create schema if not exists ext;
-create extension if not exists "uuid-ossp" with schema ext;
 
 set search_path = pim, ext;
 

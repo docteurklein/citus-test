@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: citus-coordinator
-        image: registry.localhost:43051/postgres-citus:latest
+        image: citusdata/citus:latest
         ports:
         - containerPort: 5432
         env:
@@ -72,4 +72,4 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 2Gi
+          storage: 5Gi

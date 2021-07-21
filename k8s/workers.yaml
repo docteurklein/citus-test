@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: citus-worker
-        image: registry.localhost:43051/postgres-citus:latest
+        image: citusdata/citus:latest
         lifecycle:
           postStart:
             exec:
