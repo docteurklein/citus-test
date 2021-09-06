@@ -11,16 +11,20 @@ begin;
 -- from program 'curl https://raw.githubusercontent.com/raosaif/sample_postgresql_database/master/from_csv/csv_files/episode_list.csv'
 -- delimiter ',' csv header;
 
-with ep as (
-select * from public.episode limit 100
-)
-insert into product (family_id, values, tenant_id)
-select f.family_id, jsonb_object_agg(episode_name, description), f.tenant_id
+truncate product cascade;
+
+-- with strings as (
+--     select jsonb_object_agg(a.name, description) s
+--     from attribute a,
+--     (select *, random() from public.episode order by random() limit 10) ep
+--     group by season_num, content_id
+-- )
+insert into product (family_id, tenant_id, values)
+select f.family_id, f.tenant_id, jsonb_build_object('text_attribute', jsonb_object_agg(a.name, (select description || i from public.episode order by random() limit 1)))
 from family f
 join attribute a using (tenant_id),
-ep,
--- select array_length(array_agg(description),1) from episode group by season_num, content_id limit 20;
-generate_series(1, 10) i
-group by f.family_id, f.tenant_id, season_num, content_id;
+generate_series(1, 8) i
+-- public.episode
+group by i, f.family_id, tenant_id;
 
 commit;

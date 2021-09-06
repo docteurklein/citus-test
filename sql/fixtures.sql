@@ -8,7 +8,7 @@ truncate tenant cascade;
 
 insert into tenant (name)
 select 'tenant#' || i
-from generate_series(1, 100) i;
+from generate_series(1, 1000) i;
 
 insert into family (name, tenant_id)
 select 'family#' || i, tenant_id
@@ -22,8 +22,8 @@ insert into family_has_attribute (family_id, attribute_id, tenant_id)
 select f.family_id, a.attribute_id, f.tenant_id
 from family f join attribute a using (tenant_id);
 
-insert into product (family_id, values, tenant_id)
-select f.family_id, jsonb_build_object(a.name, 'test' || i), f.tenant_id
+insert into product (family_id, tenant_id, values)
+select f.family_id, f.tenant_id, jsonb_build_object(a.name, 'test' || i)
 from family f
 join attribute a using (tenant_id),
 generate_series(1, 100) i;

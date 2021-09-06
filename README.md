@@ -22,7 +22,7 @@ from (
   select table_name, table_schema,
          query_to_xml(format('select count(*) as cnt from %I.%I', table_schema, table_name), false, true, '') as xml_count
   from information_schema.tables
-  where table_schema = 'public' --<< change here for the schema you want
+  where table_schema = 'pim'
 ) t;
 ```
 
@@ -44,5 +44,10 @@ $cmd$);
 
 ## FTS values
 ```
+set search_path = pim, ext;
+
+create index fts on product using gin (to_tsvector('english', values->'text_attribute'->>'content'));
+
 select * from product where to_tsvector(values->>'Pilot') @@ websearch_to_tsquery('jesse pinkman');
+select * from product where to_tsvector(values->'text_attribute'->>'attribute#1') @@ websearch_to_tsquery('Unfortunately');
 ```
