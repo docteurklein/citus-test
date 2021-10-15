@@ -4,7 +4,8 @@
 ```
 k3d cluster create -v $HOME:$HOME --registry-create \
   --k3s-agent-arg '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%' \
-  --k3s-agent-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%'
+  --k3s-agent-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%' \
+  --k3s-server-arg '--kube-apiserver-arg=feature-gates=EphemeralContainers=true'
 
 kubectl create secret generic citus-secrets --from-literal "password=$(openssl rand -base64 23)"
 kubectl apply -f k8s

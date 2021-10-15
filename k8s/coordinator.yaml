@@ -10,7 +10,10 @@ spec:
     app: citus-coordinator
   clusterIP: None
   ports:
+  - port: 6432
+    name: pgbouncer
   - port: 5432
+    name: postgres
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -28,16 +31,17 @@ spec:
         app: citus-coordinator
         component: citus
     spec:
+      securityContext:
+        runAsUser: 999
+        supplementalGroups: [999,1000]
+        fsGroup: 999
       containers:
       - name: citus-coordinator
         image: citusdata/citus:latest
+        args: ['postgres', '-c', 'ssl=on', '-c', 'ssl_cert_file=/etc/citus-cert/tls.crt', '-c', 'ssl_key_file=/etc/citus-cert/tls.key']
         ports:
         - containerPort: 5432
         env:
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
         - name: PGPASSWORD
           valueFrom:
             secretKeyRef:
@@ -53,6 +57,9 @@ spec:
         volumeMounts:
         - name: storage
           mountPath: /var/lib/postgresql/data
+        - name: citus-cert
+          mountPath: "/etc/citus-cert"
+          readOnly: true
         livenessProbe:
           exec:
             command:
@@ -62,6 +69,42 @@ spec:
               - '--timeout=5'
               - '--quiet'
           initialDelaySeconds: 60
+
+      - name: pgbouncer
+        image: bitnami/pgbouncer:latest
+        ports:
+        - containerPort: 6432
+        env:
+        - name: POSTGRESQL_HOST
+          value: localhost
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: citus-secrets
+              key: password
+        - name: PGBOUNCER_AUTH_TYPE
+          value: trust
+        - name: PGBOUNCER_CLIENT_TLS_SSLMODE
+          value: require
+        - name: PGBOUNCER_CLIENT_TLS_CERT_FILE
+          value: /etc/citus-cert/tls.crt
+        - name: PGBOUNCER_CLIENT_TLS_KEY_FILE
+          value: /etc/citus-cert/tls.key
+        volumeMounts:
+        - name: citus-cert
+          mountPath: "/etc/citus-cert"
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+      volumes:
+      - name: citus-cert
+        secret:
+          secretName: citus-cert
+          defaultMode: 0440
+
   volumeClaimTemplates:
   - metadata:
       name: storage

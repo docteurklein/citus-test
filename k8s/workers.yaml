@@ -10,7 +10,10 @@ spec:
     app: citus-worker
   clusterIP: None
   ports:
+  - port: 6432
+    name: pgbouncer
   - port: 5432
+    name: postgres
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -28,9 +31,14 @@ spec:
         app: citus-worker
         component: citus
     spec:
+      securityContext:
+        runAsUser: 999
+        supplementalGroups: [999,1000]
+        fsGroup: 999
       containers:
       - name: citus-worker
         image: citusdata/citus:latest
+        args: ['postgres', '-c', 'ssl=on', '-c', 'ssl_cert_file=/etc/citus-cert/tls.crt', '-c', 'ssl_key_file=/etc/citus-cert/tls.key']
         lifecycle:
           postStart:
             exec:
@@ -41,14 +49,10 @@ spec:
                 - -c
                 - >
                    until pg_isready -U postgres --timeout=5 --quiet; do sleep 2; done;
-                   psql -h citus-coordinator -U postgres -c "SELECT * from master_add_node('${HOSTNAME}.citus-worker.default.svc.cluster.local', 5432);"
+                   psql 'sslmode=prefer host=citus-coordinator user=postgres' -c "SELECT * from citus_add_node('${HOSTNAME}.citus-worker.default.svc.cluster.local', 6432);"
         ports:
         - containerPort: 5432
         env:
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
         - name: PGPASSWORD
           valueFrom:
             secretKeyRef:
@@ -64,6 +68,10 @@ spec:
         volumeMounts:
         - name: storage
           mountPath: /var/lib/postgresql/data
+        - name: citus-cert
+          mountPath: "/etc/citus-cert"
+          readOnly: true
+
         livenessProbe:
           exec:
             command:
@@ -73,6 +81,42 @@ spec:
               - '--timeout=5'
               - '--quiet'
           initialDelaySeconds: 60
+
+      - name: pgbouncer
+        image: bitnami/pgbouncer:latest
+        ports:
+        - containerPort: 6432
+        env:
+        - name: POSTGRESQL_HOST
+          value: localhost
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: citus-secrets
+              key: password
+        - name: PGBOUNCER_AUTH_TYPE
+          value: trust
+        - name: PGBOUNCER_CLIENT_TLS_SSLMODE
+          value: require
+        - name: PGBOUNCER_CLIENT_TLS_CERT_FILE
+          value: /etc/citus-cert/tls.crt
+        - name: PGBOUNCER_CLIENT_TLS_KEY_FILE
+          value: /etc/citus-cert/tls.key
+        volumeMounts:
+        - name: citus-cert
+          mountPath: "/etc/citus-cert"
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+      volumes:
+      - name: citus-cert
+        secret:
+          secretName: citus-cert
+          defaultMode: 0440
+
   volumeClaimTemplates:
   - metadata:
       name: storage
