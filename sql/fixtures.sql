@@ -8,7 +8,7 @@ truncate tenant cascade;
 
 insert into tenant (name)
 select 'tenant#' || i
-from generate_series(1, 1000) i;
+from generate_series(1, 10) i;
 
 insert into family (name, tenant_id)
 select 'family#' || i, tenant_id
@@ -44,7 +44,7 @@ with c1 as (
     from c2, generate_series(13, 15) i
     returning category_id
 ), c as (
-    select category_id, tenant_id from category order by random() limit 100
+    select category_id, tenant_id from category order by random() limit 10
 ), p as (
     select product_id, category_id, tenant_id from product join c using (tenant_id) order by random()
 )

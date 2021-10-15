@@ -6,7 +6,7 @@ set search_path = pim, ext;
 begin;
 
 -- create table public.episode ("episode_id" text primary key,"season_num" text,"episode_name" text,"content_id" text,"release_date" text,"episode_rating" text,"episode_num" text,"description" text,"last_updated" text,"episode_imdb_link" text,"episode_score_votes" text);
---
+-- 
 -- copy public.episode
 -- from program 'curl https://raw.githubusercontent.com/raosaif/sample_postgresql_database/master/from_csv/csv_files/episode_list.csv'
 -- delimiter ',' csv header;
