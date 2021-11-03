@@ -77,7 +77,7 @@ However, logical replication doesn't synchronize DDL, so it's harder to keep eve
 We need to correctly setup the `pg_hba.conf` file to allow remote connections to use replication.  
 For this we used a ConfigMap holding entries that allows replication.
 
-We reused
+We reused the same `postgres` superuser, which is bad.
 
 
 #### on the replicas
@@ -115,7 +115,7 @@ Then, we only had to mount those secrets in files, and point postgres to use the
 args: ['postgres', '-c', 'ssl=on', '-c', 'ssl_cert_file=/etc/citus-cert/tls.crt', '-c', 'ssl_key_file=/etc/citus-cert/tls.key']
 ```
 
-We also had to configure pgbouncer to sue the **same** TLS certificates.
+We also had to configure pgbouncer to use the **same** TLS certificates.
 
 ### the TLS permissions story
 
@@ -144,6 +144,21 @@ We used the `postStart` hook of kubernetes to call this in parallel to the creat
 
 One problem is to find the correct DNS names for the workers that matches the TLS domains **and** the resolvable IP for inter-node communication. This is the only hardcoded value in this example for now.
 
+Now the worker is added to the list, we still need to ask citus to **rebalance** the shards.  
+This could be done automatically maybe (by using the postStart hooks or such), but for now you have to call:
+
+```
+SELECT rebalance_table_shards();
+```
+
+See https://docs.citusdata.com/en/stable/develop/api_udf.html#rebalance-table-shards
+
+Also, we didn't handle node draining in case the node disappears: 
+
+https://docs.citusdata.com/en/stable/develop/api_udf.html#citus-drain-node
+
+We would have to attach to the `preStop` hook maybe, but that is not guaranteed to work and could leave the cluster in a non-working state.
+
 
 ## limitations and known issues
 
@@ -167,3 +182,7 @@ I have to sanitize names inferred out of the $HOSTNAME env var because it contai
 ```
 psql 'host=citus-coordinator user=postgres' -c "select pg_create_physical_replication_slot('$(echo $HOSTNAME | tr -dc '[:alnum:]')');"
 ```
+
+ - reusing the `postgres` superuser for everything, including replication
+
+This is bas security, and we even `trust` connections of `samenet` without verifying the scram passwords even tho we could.
