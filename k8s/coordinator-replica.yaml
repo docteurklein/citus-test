@@ -64,6 +64,7 @@ spec:
           else
               echo "Skipping pg_basebackup because $PGDATA is not empty";
           fi
+          psql 'host=citus-coordinator user=postgres' -c "select pg_drop_replication_slot(slot_name) from pg_replication_slots where slot_name = '$(echo $HOSTNAME | tr -dc '[:alnum:]')';"
           psql 'host=citus-coordinator user=postgres' -c "select pg_create_physical_replication_slot('$(echo $HOSTNAME | tr -dc '[:alnum:]')');"
 
       containers:
@@ -73,7 +74,7 @@ spec:
         - sh
         - -c
         - >
-            postgres -c ssl=on -c ssl_cert_file=/etc/citus-cert/tls.crt -c ssl_key_file=/etc/citus-cert/tls.key -c primary_conninfo='host=citus-coordinator user=postgres' -c primary_slot_name=$(echo $HOSTNAME | tr -dc '[:alnum:]')
+            postgres -c ssl=on -c ssl_cert_file=/etc/citus-cert/tls.crt -c ssl_key_file=/etc/citus-cert/tls.key -c primary_conninfo='host=citus-coordinator user=postgres' -c primary_slot_name=$(echo $HOSTNAME | tr -dc '[:alnum:]') -c citus.writable_standby_coordinator=on
         ports:
         - containerPort: 5432
         env:

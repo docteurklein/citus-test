@@ -27,26 +27,6 @@ select run_command_on_shards('product', $cmd$
     create policy by_tenant on %s to public using (current_setting('app.tenant_id') = tenant_id::text);
 $cmd$);
 
-SELECT run_command_on_workers($cmd$
-  create or replace function set_tenant_id() returns trigger as $$
-    begin
-      new.tenant_id := current_setting('app.tenant_id')::uuid;
-      return new;
-    end;
-  $$ language plpgsql;
-$cmd$
-);
-
-SELECT run_command_on_placements('product', $cmd$
-    drop trigger if exists set_product_tenant_id on %s;
-$cmd$
-);
-
-SELECT run_command_on_placements('product', $cmd$
-    create trigger set_product_tenant_id before insert or update on %s
-      for each row execute function set_tenant_id()
-$cmd$);
-
 commit;
 
 

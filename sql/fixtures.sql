@@ -22,8 +22,26 @@ insert into family_has_attribute (family_id, attribute_id, tenant_id)
 select f.family_id, a.attribute_id, f.tenant_id
 from family f join attribute a using (tenant_id);
 
+
+create temporary table episode (
+    "episode_id" text primary key,
+    "season_num" text,
+    "episode_name" text,
+    "content_id" text,
+    "release_date" text,
+    "episode_rating" text,
+    "episode_num" text,
+    "description" text,
+    "last_updated" text,
+    "episode_imdb_link" text,
+    "episode_score_votes" text
+);
+copy episode
+from program 'curl https://raw.githubusercontent.com/raosaif/sample_postgresql_database/master/from_csv/csv_files/episode_list.csv'
+delimiter ',' csv header;
+
 insert into product (family_id, tenant_id, values)
-select f.family_id, f.tenant_id, jsonb_build_object(a.name, 'test' || i)
+select f.family_id, f.tenant_id, jsonb_build_object(a.name, (select description || i from episode order by random() limit 1))
 from family f
 join attribute a using (tenant_id),
 generate_series(1, 100) i;
