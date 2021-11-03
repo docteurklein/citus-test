@@ -32,8 +32,6 @@ spec:
         component: citus
     spec:
       securityContext:
-        runAsUser: 999
-        supplementalGroups: [999,1000]
         fsGroup: 999
       containers:
       - name: postgres
