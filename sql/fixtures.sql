@@ -61,16 +61,18 @@ delimiter ',' csv header;
 
 select create_reference_table('sample_episode');
 
+with some_product as (
+    select product_id, tenant_id from product limit 10000
+)
 insert into product_value (product_id, attribute_id, channel_id, locale_id, tenant_id, value)
 select p.product_id, a.attribute_id, c.channel_id, l.locale_id, t.tenant_id,
 (select jsonb_build_object('content', description)->'content' from sample_episode tablesample system_rows(1))
 from tenant t
-join product p using (tenant_id)
+join some_product p using (tenant_id)
 join attribute a using (tenant_id)
 join channel c using (tenant_id)
 join locale l using (tenant_id)
-where a.type = 'text'
-limit 100000;
+where a.type = 'text';
 
 with c1 as (
     insert into category (name, tenant_id)

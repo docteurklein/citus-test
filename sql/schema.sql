@@ -105,4 +105,11 @@ select create_distributed_table('product_value', 'tenant_id', colocate_with => '
 select create_distributed_table('category', 'tenant_id', colocate_with => 'product');
 select create_distributed_table('product_in_category', 'tenant_id', colocate_with => 'product');
 
+create or replace function pim.localized_tsvector(language text, content text) returns tsvector as $$
+  select to_tsvector(language::regconfig, content);
+$$ language sql immutable;
+select create_distributed_function('localized_tsvector(text,text)');
+
+create index fts on product_value using gin (pim.localized_tsvector(locale_id, value::text));
+
 commit;
