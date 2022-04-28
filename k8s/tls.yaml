@@ -12,7 +12,6 @@ metadata:
 spec:
   secretName: citus-cert
   dnsNames:
-  - '*.citus-worker.default.svc.cluster.local'
-  - '*.citus-coordinator.default.svc.cluster.local'
+  - '*.citus.default.svc.cluster.local'
   issuerRef:
     name: citus-issuer

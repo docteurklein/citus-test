@@ -1,0 +1,16 @@
+apiVersion: k3d.io/v1alpha4
+kind: Simple
+metadata:
+  name: test
+options:
+  k3s:
+    extraArgs:
+      - arg: '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%'
+        nodeFilters:
+          - agent:*
+      - arg: '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%'
+        nodeFilters:
+          - agent:*
+      - arg: '--kube-apiserver-arg=feature-gates=EphemeralContainers=true'
+        nodeFilters:
+          - server:*

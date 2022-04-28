@@ -1,0 +1,147 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: citus
+  labels:
+    app: citus
+spec:
+  selector:
+    app: citus
+  clusterIP: None
+  ports:
+  - port: 5432
+    name: postgres
+  - port: 6432
+    name: pgbouncer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pg-hba
+data:
+  pg_hba.conf: |
+    # TYPE  DATABASE        USER            ADDRESS                 METHOD
+    # "local" is for Unix domain socket connections only
+    local   all             all                                     trust
+    # IPv4 local connections:
+    host    all             all             127.0.0.1/32            trust
+    # IPv6 local connections:
+    host    all             all             ::1/128                 trust
+    # Allow replication connections from localhost, by a user with the
+    # replication privilege.
+    local   replication     all                                     trust
+    host    replication     all             127.0.0.1/32            trust
+    host    replication     all             ::1/128                 trust
+    host    replication     all             samenet                 trust
+    host    all             all             samenet                 trust
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: citus
+spec:
+  selector:
+    matchLabels:
+      app: citus
+  serviceName: citus
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: citus
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+      - name: postgres
+        image: citusdata/citus:latest
+        args: [
+           'postgres',
+            '-c', 'ssl=on',
+            '-c', 'ssl_cert_file=/etc/citus-cert/tls.crt',
+            '-c', 'ssl_key_file=/etc/citus-cert/tls.key',
+            '-c', 'wal_level=replica',
+            '-c', 'hba_file=/etc/postgres/pg_hba.conf'
+        ]
+        ports:
+        - containerPort: 5432
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: citus-secrets
+              key: password
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: citus-secrets
+              key: password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: storage
+          mountPath: /var/lib/postgresql/data
+        - name: citus-cert
+          mountPath: "/etc/citus-cert"
+          readOnly: true
+        - name: pg-hba
+          mountPath: "/etc/postgres"
+          readOnly: true
+        livenessProbe:
+          exec:
+            command:
+              - 'pg_isready'
+              - '-U'
+              - 'postgres'
+              - '--timeout=5'
+              - '--quiet'
+          initialDelaySeconds: 60
+
+      - name: pgbouncer
+        image: bitnami/pgbouncer:latest
+        ports:
+        - containerPort: 6432
+        env:
+        - name: POSTGRESQL_HOST
+          value: localhost
+        - name: POSTGRESQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: citus-secrets
+              key: password
+        - name: PGBOUNCER_AUTH_TYPE
+          value: trust
+        - name: PGBOUNCER_CLIENT_TLS_SSLMODE
+          value: require
+        - name: PGBOUNCER_CLIENT_TLS_CERT_FILE
+          value: /etc/citus-cert/tls.crt
+        - name: PGBOUNCER_CLIENT_TLS_KEY_FILE
+          value: /etc/citus-cert/tls.key
+        volumeMounts:
+        - name: citus-cert
+          mountPath: "/etc/citus-cert"
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+      volumes:
+      - name: citus-cert
+        secret:
+          secretName: citus-cert
+          defaultMode: 0440
+      - name: pg-hba
+        configMap:
+          name: pg-hba
+
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+      labels:
+        app: citus
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Gi

@@ -2,10 +2,7 @@
 
 ## setup
 ```
-k3d cluster create -v $HOME:$HOME --registry-create \
-  --k3s-agent-arg '--kubelet-arg=eviction-hard=imagefs.available<1%,nodefs.available<1%' \
-  --k3s-agent-arg '--kubelet-arg=eviction-minimum-reclaim=imagefs.available=1%,nodefs.available=1%' \
-  --k3s-server-arg '--kube-apiserver-arg=feature-gates=EphemeralContainers=true'
+k3d cluster create -c k3d.yaml
 
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.4/cert-manager.yaml
 
