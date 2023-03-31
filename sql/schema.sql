@@ -85,16 +85,6 @@ create or replace function pim.localized_tsvector(language text, content text) r
   select to_tsvector(language::regconfig, content);
 $$ language sql immutable;
 
-select create_reference_table('tenant');
-select create_distributed_table('family', 'tenant_id');
-select create_distributed_table('channel', 'tenant_id');
-select create_distributed_table('attribute', 'tenant_id', colocate_with => 'family');
-select create_distributed_table('family_has_attribute', 'tenant_id', colocate_with => 'family');
-select create_distributed_table('product', 'tenant_id', colocate_with => 'family');
-select create_distributed_table('product_value', 'tenant_id', colocate_with => 'product');
-select create_distributed_table('category', 'tenant_id', colocate_with => 'product');
-select create_distributed_table('product_in_category', 'tenant_id', colocate_with => 'product');
-select create_distributed_function('pim.localized_tsvector(text,text)');
 
 create index fts on product_value using gin (localized_tsvector(locale_id, value::text));
 commit;

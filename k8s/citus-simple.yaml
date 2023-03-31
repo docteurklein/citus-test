@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: citus
+  labels:
+    app: citus
+spec:
+  selector:
+    app: citus
+  clusterIP: None
+  ports:
+  - port: 5432
+    name: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: citus
+spec:
+  selector:
+    matchLabels:
+      app: citus
+  serviceName: citus
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: citus
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+      - name: postgres
+        image: citusdata/citus:latest
+        ports:
+        - containerPort: 5432
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: citus-secrets
+              key: password
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: citus-secrets
+              key: password
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: storage
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command:
+              - 'pg_isready'
+              - '-U'
+              - 'postgres'
+              - '--timeout=5'
+              - '--quiet'
+          initialDelaySeconds: 20
+  volumeClaimTemplates:
+  - metadata:
+      name: storage
+      labels:
+        app: citus
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Gi
